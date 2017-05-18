@@ -27,6 +27,33 @@ Public Enum powerPointPastes
 
 End Enum
 
+Public Enum powerPointAligement
+
+    ppAlignCenter = 2
+    ppAlignDistribute = 5
+    ppAlignJustify = 4
+    ppAlignJustifyLow = 7
+    ppAlignLeft = 1
+    ppAlignmentMixed = -2
+    ppAlignRight = 3
+    ppAlignThaiDistribute = 6
+    
+End Enum
+
+Public Enum TableBorders
+
+    ppBorderTop = 1
+    ppBorderRight = 4
+    ppBorderLeft = 2
+    ppBorderBottom = 3
+
+End Enum
+Property Get presentation()
+
+    Set presentation = currentPresentation
+
+End Property
+
 
 Private Sub Class_Initialize()
 
@@ -51,7 +78,7 @@ pasteDictionary.Add "ppPasteText", 7
 End Sub
 
 
-Public Function OpenOrCreatePowerPoint(Optional ByVal presentationDirectory As String) As Object
+Public Function OpenOrCreatePowerPoint(Optional ByVal presentationDirectory As String, Optional ByVal force4x3 As Boolean) As Object
 
 Dim powerPointApp As Object
 Dim slideShow As Object
@@ -87,6 +114,12 @@ Else
         
     On Error GoTo 0
     
+End If
+
+If force4x3 Then
+
+    slideShow.PageSetup.SlideSize = 1
+
 End If
 
 Set OpenOrCreatePowerPoint = slideShow
@@ -129,7 +162,7 @@ Public Function AddSlide(Optional ByVal before As Long, Optional ByVal templateI
         
     End If
     
-    With currentPresentation.slides
+    With currentPresentation.Slides
     
         If before > .Count Then
         
@@ -147,6 +180,23 @@ Public Function AddSlide(Optional ByVal before As Long, Optional ByVal templateI
         End If
     End With
 End Function
+
+Public Function CopySlide(ByVal sourceSlideID As Long) As Long
+
+    Dim currentSlide As Object
+    
+    If currentPresentation Is Nothing Then
+    
+        Set currentPresentation = OpenOrCreatePowerPoint
+        
+    End If
+    
+    Set currentSlide = currentPresentation.Slides(sourceSlideID).Duplicate
+    
+    CopySlide = currentSlide.SlideNumber
+
+End Function
+
 Public Function DeleteSlide(slideID As Long)
 Dim errors As New errorHandler
 If currentPresentation Is Nothing Then
@@ -156,7 +206,7 @@ If currentPresentation Is Nothing Then
     
 Else
 
-    currentPresentation.slides(slideID).Delete
+    currentPresentation.Slides(slideID).Delete
     
 End If
 
@@ -183,13 +233,13 @@ If pasteType = 0 Then
 End If
 
 
-If currentPresentation.slides.Count = 0 Then
+If currentPresentation.Slides.Count = 0 Then
 
     AddSlide
     
 End If
     
-If currentPresentation.slides.Count < slideID Then
+If currentPresentation.Slides.Count < slideID Then
 
     errors.AddError "Slide" & slideID & " does not exists", StandardError
 
@@ -208,7 +258,7 @@ Else
         End If
         excelChart.ChartArea.Copy
         
-        Set currentChart = currentPresentation.slides(slideID).Shapes.PasteSpecial(pasteINT)
+        Set currentChart = currentPresentation.Slides(slideID).Shapes.PasteSpecial(pasteINT)
         
         With currentChart
         
@@ -254,13 +304,13 @@ End If
 
 
 
-If currentPresentation.slides.Count = 0 Then
+If currentPresentation.Slides.Count = 0 Then
 
     AddSlide
     
 End If
     
-If currentPresentation.slides.Count < slideID Then
+If currentPresentation.Slides.Count < slideID Then
 
     errors.AddError "Slide" & slideID & " does not exists", StandardError
 
@@ -288,7 +338,7 @@ Else
         
         excelRange.Copy
         
-                Set currentChart = currentPresentation.slides(slideID).Shapes.PasteSpecial(pasteINT)
+                Set currentChart = currentPresentation.Slides(slideID).Shapes.PasteSpecial(pasteINT)
         
         With currentChart
         
@@ -323,24 +373,24 @@ If currentPresentation Is Nothing Then
         
 End If
 
-If currentPresentation.slides.Count = 0 Then
+If currentPresentation.Slides.Count = 0 Then
 
     AddSlide
         
 End If
 
-If currentPresentation.slides.Count < slideID Then
+If currentPresentation.Slides.Count < slideID Then
 
     errors.AddError "Slide" & slideID & " does not exists", StandardError
 
 Else
     On Error Resume Next
     
-        Set currentTextBox = currentPresentation.slides(slideID).Shapes(textObjectName)
+        Set currentTextBox = currentPresentation.Slides(slideID).Shapes(textObjectName)
         
         If Err.Number <> 0 Then
         
-            Set currentTextBox = currentPresentation.slides(slideID).Shapes.AddTextbox(msoTextOrientationHorizontal, left, top, width, height)
+            Set currentTextBox = currentPresentation.Slides(slideID).Shapes.AddTextBox(msoTextOrientationHorizontal, left, top, width, height)
             With currentTextBox
                 
                 .left = 1
@@ -352,7 +402,7 @@ Else
         End If
            
     
-        currentTextBox.TextFrame.TextRange.Text = fillString
+        currentTextBox.TextFrame.TextRange.text = fillString
         
         If IsMissing(top) Then
         
@@ -400,4 +450,289 @@ Else
     On Error GoTo 0
 End If
 End Function
+Public Function AddTable(ByVal Rows As Integer, ByVal Columns As Integer, _
+                               ByVal slideID As Long, ByVal top As Long, ByVal left As Long, _
+                               ByVal height As Long, ByVal width As Long) As Object
 
+slideID = Builder(slideID)
+
+Set AddTable = currentPresentation.Slides(slideID).Shapes.AddTable(Rows, Columns, left, top, width, height)
+
+End Function
+
+
+Public Function FormatTable(ByRef Table As Object, ByVal backgroundColor As Long, _
+                             ByVal BorderWidth As Integer, ByVal BorderColor As Long, _
+                             Optional outBorderWidth As Integer, Optional outBorderColor As Long)
+                             
+For Each row In Table.Table.Rows
+
+    For Each Cell In row.Cells
+        With Cell
+        
+            .Borders(3).weight = BorderWidth
+            .Borders(2).weight = BorderWidth
+            .Borders(4).weight = BorderWidth
+            .Borders(1).weight = BorderWidth
+            .Borders(3).ForeColor.RGB = BorderColor
+            .Borders(2).ForeColor.RGB = BorderColor
+            .Borders(4).ForeColor.RGB = BorderColor
+            .Borders(1).ForeColor.RGB = BorderColor
+            .Shape.Fill.BackColor.RGB = backgroundColor
+            .Shape.Fill.ForeColor.RGB = backgroundColor
+        End With
+    
+    Next Cell
+Next row
+
+If Not outBorderWidth = 0 Or outBorderColor = 0 Then
+With Table.Table
+    For Each Cell In .Rows(1).Cells
+    
+        Cell.Borders(1).weight = outBorderWidth
+        Cell.Borders(1).ForeColor.RGB = outBorderColor
+    
+    Next Cell
+    
+    For Each Cell In .Columns(1).Cells
+    
+        Cell.Borders(2).weight = outBorderWidth
+        Cell.Borders(2).ForeColor.RGB = outBorderColor
+    
+    Next Cell
+    
+    For Each Cell In .Rows(.Rows.Count).Cells
+        
+        Cell.Borders(3).weight = outBorderWidth
+        Cell.Borders(3).ForeColor.RGB = outBorderColor
+    
+    Next Cell
+    
+    For Each Cell In .Columns(.Columns.Count).Cells
+    
+        Cell.Borders(4).weight = outBorderWidth
+        Cell.Borders(4).ForeColor.RGB = outBorderColor
+    
+    Next Cell
+End With
+End If
+                    
+End Function
+
+Public Sub CenterCell(ByRef Table, ByVal row, ByVal column)
+
+    Table.Table.Cell(row, column).Shape.TextFrame2.HorizontalAnchor = msoAnchorCenter
+
+End Sub
+
+Public Sub FormatOneBorder(ByRef Table As Object, ByVal row As Integer, ByVal column As Integer, _
+ByVal border As TableBorders, ByVal isVisible As Boolean, ByVal weight As Integer, ByVal color As Long)
+
+With Table.Table.Cell(row, column).Borders(border)
+
+    .Visible = isVisible
+    .weight = weight
+    .ForeColor.RGB = color
+    
+End With
+
+End Sub
+
+Public Sub LoadTextIntoCell(ByRef Table As Object, ByVal row As Integer, ByVal column As Integer, ByVal text As String, ByVal fontColor As Long, ByVal fontSize As Long, ByVal Append As Boolean, Optional ByVal font As String, Optional ByVal Bold As Boolean = False)
+
+With Table.Table.Cell(row, column).Shape.TextFrame.TextRange
+    If Append = False Then
+    
+            .text = text
+            .font.color.RGB = fontColor
+
+    Else
+    
+            .text = .text & " " & text
+    
+    End If
+
+    .font.Size = fontSize
+    .font.Name = font
+    .font.Bold = Bold
+End With
+End Sub
+Public Sub LoadRangeIntoCell(ByRef Table As Object, ByVal row As Integer, ByVal column As Integer, ByVal Cell As Range, Optional ByVal fontSize As Long, Optional ByVal font As String)
+
+Cell.Copy
+With Table.Table.Cell(row, column)
+
+    .Shape.TextFrame2.TextRange.PasteSpecial 3 ' msoClipboardFormatRTF
+    If fontSize <> 0 Then .Shape.TextFrame.TextRange.font.Size = fontSize
+    If font <> "" Then .Shape.TextFrame.TextRange.font.Name = font
+
+End With
+
+End Sub
+Public Sub ColorPartOfTheText(ByRef Table As Object, ByVal row As Integer, ByVal column As Integer, ByVal firstChar As Long, ByVal length As Long, ByVal color As Long)
+
+Table.Table.Cell(row, column).Shape.TextFrame.TextRange.Characters(firstChar, length).font.color.RGB = color
+
+End Sub
+
+Public Sub SplitCell(ByRef Table As Object, ByVal row As Integer, ByVal Columm As Integer, ByVal NewRows As Integer, ByVal NewColumns As Integer)
+
+Table.Table.Cell(row, Columm).Split NewRows, NewColumns
+
+End Sub
+
+Public Sub AddTextBox(ByVal slideID As Integer, ByVal textValue As String, ByVal fontFamily As String, ByVal fontSize As Integer, ByVal rotation As Double, _
+ByVal color As Long, ByVal top As Integer, ByVal left As Integer, ByVal height As Integer, ByVal width As Integer, Optional ByVal orientation As powerPointAligement)
+
+Dim textBox As Object
+slideID = Builder(slideID)
+
+Set textBox = currentPresentation.Slides(slideID).Shapes.AddTextBox(msoTextOrientationHorizontal, top, left, height, width)
+
+With textBox
+    .rotation = rotation
+    .TextFrame2.TextRange.text = textValue
+    .TextFrame2.TextRange.font.Name = fontFamily
+    .TextFrame2.TextRange.font.Size = fontSize
+    .TextFrame2.TextRange.font.Fill.ForeColor.RGB = color
+    .ZOrder msoBringToFront
+    If orientation <> 0 Then
+    
+        .TextFrame.TextRange.ParagraphFormat.Alignment = orientation
+        
+    End If
+        
+End With
+
+End Sub
+
+Sub AutoSizeTableRows(ByRef Table As Object, ByVal columnIndex As Integer)
+
+Dim minH As Double
+
+For i = 1 To Table.Table.Rows.Count
+
+    With Table.Table.Cell(i, columnIndex).Shape.TextFrame
+        
+        minH = .TextRange.BoundHeight + .MarginTop + .MarginBottom
+    End With
+    Table.Table.Rows(i).height = minH
+    
+    
+Next i
+
+End Sub
+
+
+Public Sub AdjustTableRows(ByRef Table, Heights() As Variant)
+
+Dim finalArray() As Variant
+Dim i As Integer
+ReDim finalArray(1 To Table.Table.Rows.Count)
+If Table.Table.Rows.Count > UBound(Heights) + 1 Then
+    For i = 1 To UBound(Heights)
+    
+        finalArray(i) = Heights(i)
+        
+    Next i
+    For j = i To Table.Table.Rows.Count
+     
+        finalArray(j) = Heights(i - 1)
+        
+    Next j
+ElseIf Table.Table.Rows.Count < UBound(Heights) Then
+
+    Debug.Print "Cound not allocate values to the array"
+
+Else
+
+    finalArray = Heights
+
+End If
+
+i = 1
+For Each element In finalArray
+
+    With Table.Table
+    
+        .Rows(i).height = element
+    End With
+    i = i + 1
+Next element
+
+End Sub
+
+
+Public Function AddBackGroundToSlideMaster(ByVal slideID As Long, ByVal screenFill As Double, color As Long) As Object
+
+slideID = Builder(slideID)
+Dim top, left, width, height As Double
+Dim slideWidth, slideHeight As Double
+Dim thisShape As Variant
+
+With currentPresentation.PageSetup
+
+    slideHeight = .slideHeight
+    slideWidth = .slideWidth
+
+End With
+
+width = slideWidth * screenFill
+height = slideHeight * screenFill
+top = (slideHeight - height) / 2
+left = (slideWidth - width) / 2
+
+Set thisShape = currentPresentation.Slides(slideID).Master.Shapes.AddShape(1, left, top, width, height)
+thisShape.Fill.ForeColor.RGB = color
+thisShape.Line.Visible = msoFalse
+End Function
+
+Public Sub AddLine(ByVal slideID As Integer, ByVal top1 As Long, ByVal left1 As Long, ByVal top2 As Long, ByVal left2 As Long, lineStyle As MsoLineDashStyle, ByVal color As Long, ByVal weight As Integer)
+
+slideID = Builder(slideID)
+
+With currentPresentation.Slides(slideID).Shapes.AddLine(top2, left2, top1, left1).Line
+
+    .DashStyle = lineStyle
+    .ForeColor.RGB = color
+    .weight = weight
+    
+End With
+
+End Sub
+Public Sub AddRectangle(ByVal slideID As Integer, ByVal top As Long, ByVal left As Long, ByVal height As Long, ByVal width As Long, _
+color As Long)
+Dim thisShape As Object
+slideID = Builder(slideID)
+Set thisShape = currentPresentation.Slides(slideID).Shapes.AddShape(msoShapeRectangle, left, top, width, height)
+
+With thisShape
+
+    .Fill.ForeColor.RGB = color
+    .Line.Visible = msoFalse
+
+End With
+
+End Sub
+
+Private Function Builder(slideID) As Long
+If currentPresentation Is Nothing Then
+
+    Set currentPresentation = OpenOrCreatePowerPoint
+    
+End If
+
+If currentPresentation.Slides.Count = 0 Then
+
+    AddSlide
+    
+End If
+    
+If currentPresentation.Slides.Count < slideID Then
+
+    slideID = currentPresentation.Slides.Count
+    
+End If
+Builder = slideID
+
+End Function
